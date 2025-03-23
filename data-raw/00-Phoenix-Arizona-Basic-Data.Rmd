@@ -1,0 +1,306 @@
+---
+title: "Phoenix Arizona"
+---
+
+# Phoenix Arizona Data
+
+This will be the basic data pre-processing work for Phoenix, Arizona. The other city notebooks follow the same steps but with different sets of CBSA data.
+
+Estimated time to run: a few minutes
+
+Load packages:
+
+```{r}
+library(ggplot2)
+library(glue) # Interpreted String Literals
+library(h3)
+library(here) # A Simpler Way to Find Your Files
+library(osmdata) # package for working with streets
+library(sf) # Simple Features for R
+library(tidycensus) # Load US Census Boundary and Attribute Data as 'tidyverse' and 'sf'-Ready Data Frames
+library(tidyverse) # Easily Install and Load the 'Tidyverse'
+library(tigris) # Load Census TIGER/Line Shapefiles
+```
+
+## Network data
+
+Download OSM data for Arizona [here](https://download.geofabrik.de/north-america/us/arizona.html). It will be a proto-buffer file (pbf). Save under `data-raw/r5_graph/$CITY_NAME$`.
+
+## Census tracts
+
+Obtain the census tracts for Phoenix. Note that [{tidycensus}](https://walker-data.com/tidycensus/) function `get_decenial()` allows the selection of state and county, but not metro area or city. Check the example [here](https://walker-data.com/census-r/spatial-analysis-with-us-census-data.html#identifying-geometries-within-a-metropolitan-area) to see how to select tracts in a city.
+
+```{r}
+options(tigris_use_cache = TRUE)
+
+az_tracts <- get_decennial(geography = "tract",
+                           variables = "H1_001N",
+                           state = "Arizona",
+                           year = 2020,
+                           geometry = TRUE
+)
+
+az_city <- urban_areas(year = 2020) |> 
+  filter(str_detect(NAME10, "AZ"))
+```
+
+A [core-based statistical area](https://en.wikipedia.org/wiki/Core-based_statistical_area) is a generous definition of the area of interest, since it contains an urban nucleus (say, Phoenix) and also all neighboring communities that are tightly integrated with it. It is important to note that some of the neighboring communities share boundaries with the urban nucleus, but some are disconnected.
+
+```{r}
+phoenix_cbsa <- core_based_statistical_areas(year = 2020) |>
+  filter(str_detect(NAME, "Phoenix"))
+```
+
+A much stricter definition of the area of interest would result from using the city boundaries, which can be obtained using `urban_areas()`:
+
+```{r}
+phoenix_city <- urban_areas(year = 2020) |> 
+  filter(str_detect(NAME10, "Phoenix--Mesa"))
+```
+
+Plot the location of Phoenix CBSA within Arizona and its tracts:
+
+```{r}
+ggplot() +
+  geom_sf(data = az_tracts,
+          fill = "lightgrey") +
+  geom_sf(data = phoenix_cbsa,
+          color = "red",
+          fill = NA) +
+  geom_sf(data = az_city,
+          color = "blue",
+          fill = NA) +
+  theme_minimal()
+```
+
+Select all urban areas in Phoenix CBSA:
+
+```{r}
+phoenix_urban <- st_filter(az_city, phoenix_cbsa)
+```
+
+Plot urban boundaries within the Phoenix CBSA:
+
+```{r}
+ggplot() +
+  geom_sf(data = phoenix_cbsa,
+          fill = "lightgray") +
+  geom_sf(data = phoenix_urban,
+          color = "blue",
+          fill = NA) +
+  theme_minimal()
+```
+
+Filter out areas of Phoenix attached from the main area:
+
+```{r}
+phoenix_urban <- phoenix_urban |>
+  filter(!str_detect(NAME10, "Tucson"))
+
+phoenix_urban <- phoenix_urban |>
+  filter(!str_detect(NAME10, "Wickenburg"))
+
+phoenix_urban <- phoenix_urban |>
+  filter(!str_detect(NAME10, "Maricopa"))
+
+phoenix_urban <- phoenix_urban |>
+  filter(!str_detect(NAME10, "Casa Grande"))
+
+phoenix_urban <- phoenix_urban |>
+  filter(!str_detect(NAME10, "Arizona City"))
+
+phoenix_urban <- phoenix_urban |>
+  filter(!str_detect(NAME10, "Eloy"))
+
+phoenix_urban <- phoenix_urban |>
+  filter(!str_detect(NAME10, "Coolidge"))
+
+phoenix_urban <- phoenix_urban |>
+  filter(!str_detect(NAME10, "San Manuel"))
+
+phoenix_urban <- phoenix_urban |>
+  filter(!str_detect(NAME10, "Superior"))
+
+phoenix_urban <- phoenix_urban |>
+  filter(!str_detect(NAME10, "Florence"))
+
+phoenix_urban <- phoenix_urban |>
+  filter(!str_detect(NAME10, "Estrella"))
+```
+
+Plot Phoenix urban:
+```{r}
+ggplot() +
+  geom_sf(data = phoenix_cbsa,
+          fill = "lightgray") +
+  geom_sf(data = phoenix_urban,
+          color = "blue",
+          fill = NA) +
+  theme_minimal()
+```
+
+
+Obtain the Phoenix tracts:
+
+```{r}
+phoenix_tracts <- az_tracts |>
+  st_filter(phoenix_urban, .predicate = st_intersects)
+```
+
+Plot Phoenix's urban tracts within the CBSA:
+
+```{r}
+ggplot() +
+  geom_sf(data = phoenix_cbsa,
+          fill = "lightgray") +
+  geom_sf(data = phoenix_tracts,
+          color = "blue",
+          fill = NA) +
+  theme_minimal()
+```
+
+<!--
+## Geohashes
+
+Use the coordinates of the centroid of Phoenix CBSA to obtain h3 polygons:
+
+```{r}
+coords <- st_centroid(phoenix_cbsa) |>
+  st_coordinates()
+
+print(coords)
+```
+
+
+```{r}
+phoenix_tracts <- az_tracts |>
+  st_intersection(phoenix_urban)
+```
+
+Retrieve h3 geohashing at a resolution of 4 to identify Phoenix:
+
+```{r}
+phoenix_h3 <- geo_to_h3(c(rev(coords)),
+                             res = 4) |>
+
+# nashville coordinates were taken from the generated coords in the chunk above (but the order is reversed).
+  
+    k_ring(2)
+
+# k_ring sets the number of h3 rings to generate around the initial h3 point, typically 2 or 3 are required depending on the CBSA. 
+
+ggplot() + 
+  geom_sf(data = (h3_to_geo_boundary_sf(phoenix_h3)),
+          aes(fill = h3_index)) +
+    geom_sf(data = phoenix_cbsa,
+          color = "red",
+          fill = NA) +
+  geom_sf(data = phoenix_urban,
+          color = "blue",
+          fill = NA) +
+  theme_minimal()
+
+print.listof(h3_to_geo_boundary_sf(phoenix_h3))
+```
+
+Keep only the h3 indices that overlap with urban Phoenix (but discard any that overlap 0-10%):
+
+```{r}
+phoenix_h3 = c("8448e97ffffffff", "8448ebbffffffff", "8429b6dffffffff", "8429b69ffffffff", "8448eb9ffffffff", "8448eb1ffffffff", "8448eb3ffffffff", "8429b65ffffffff", "8429b61ffffffff")
+
+# phoenix_h3 = c("8448e97ffffffff", "8448e95ffffffff", "8448ebbffffffff", "8429b6dffffffff", "8429b69ffffffff", "8448e83ffffffff", "8448eb9ffffffff", "8448eb1ffffffff", "8448eb3ffffffff",
+# "8429b65ffffffff", "8429b6bffffffff", "8448e81ffffffff", "8448e87ffffffff", "8448e8dffffffff", "8448e85ffffffff", "8448eabffffffff")
+
+# take the h3 list and count which ones need to be included (going in a spiral from the center point)
+```
+
+Plot kept indices:
+```{r}
+ggplot() + 
+  geom_sf(data = h3_to_geo_boundary_sf(phoenix_h3),
+          aes(fill = h3_index)) +
+  geom_sf(data = phoenix_cbsa,
+          color = "red",
+          fill = NA) +
+  geom_sf(data = phoenix_urban,
+          color = "blue",
+          fill = NA) +
+  theme_minimal()
+```
+
+Obtain children hashes at a higher resolution (8):
+
+```{r}
+phoenix_h3_res6 <- phoenix_h3 |> 
+  purrr::map(\(x) h3_to_children(x, res = 6)) |>
+  unlist()
+```
+
+Choose only hexagons that touch urban Phoenix:
+
+```{r}
+phoenix_h3_res6 <- h3_to_geo_boundary_sf(phoenix_h3_res6) |>
+  st_transform(crs = st_crs(phoenix_urban)) |>
+  st_intersection(phoenix_urban)
+
+phoenix_h3_res6 <- phoenix_h3_res6 |> 
+  pull(h3_index)
+```
+
+Plot resolution 8 hashes within Phoenix:
+
+```{r}
+ggplot() + 
+  geom_sf(data = h3_to_geo_boundary_sf(phoenix_h3_res6)) +
+  geom_sf(data = phoenix_cbsa,
+          color = "red",
+          fill = NA) +
+  geom_sf(data = phoenix_urban,
+          color = "blue",
+          fill = NA) +
+  theme_minimal()
+```
+
+The area of these polygons is quite large for the purpose of routing by walking:
+```{r}
+h3_to_geo_boundary_sf(phoenix_h3_res6) |>
+  st_area()
+```
+
+We aim to have smaller polygons for this. Resolution 13 is appropriate, as shown in this sample:
+```{r}
+phoenix_h3_res13 <- phoenix_h3_res6[1] |> 
+  purrr::map(\(x) h3_to_children(x, res = 13)) |>
+  unlist()
+```
+
+
+Obtain a sample children at resolution 13 (average area is \~50.71 $m^2$):
+```{r}
+h3_to_geo_boundary_sf(phoenix_h3_res13) |>
+  st_area() |> summary()
+```
+
+**Do not save the h3 geohashes at resolution 13: too heavy. Instead save the geohashes at resolution 6 and obtain resolution 13 when needed.**
+-->
+
+Save data objects:
+```{r}
+# Tracts
+save(phoenix_tracts, 
+     file = glue::glue(here::here(),
+                       "/data/phoenix_tracts.rda"),
+     compress = "bzip2")
+
+# Urban boundaries
+save(phoenix_urban, 
+     file = glue::glue(here::here(),
+                       "/data/phoenix_urban.rda"),
+     compress = "bzip2")
+
+# CBSA boundary
+save(phoenix_cbsa, 
+     file = glue::glue(here::here(),
+                       "/data/phoenix_cbsa.rda"),
+     compress = "bzip2")
+```
