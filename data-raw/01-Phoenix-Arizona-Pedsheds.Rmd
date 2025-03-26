@@ -50,7 +50,7 @@ r5_path <- file.path(glue::glue(here::here(), "/data-raw/r5_graph/Phoenix/"))
 
 Build the graph:
 ```{r build-graph}
-r5_phoenix_cma <- setup_r5(data_path = r5_path, 
+r5_cma <- setup_r5(data_path = r5_path, 
                             verbose = FALSE)
 
 # requires JDK version 21 (exactly version 21) to run
@@ -59,7 +59,7 @@ r5_phoenix_cma <- setup_r5(data_path = r5_path,
 <!--
 Convert network to sf:
 ```{r set up network}
-phoenix_network <- street_network_to_sf(r5_phoenix_cma)
+phoenix_network <- street_network_to_sf(r5_cma)
 ```
 
 Verify the network:
@@ -164,7 +164,7 @@ destinations_j_h3 <- data.frame(id = h3_j,
 
 Test routing with a single origin:
 ```{r}
-ttm_i <- travel_time_matrix(r5_phoenix_cma,
+ttm_i <- travel_time_matrix(r5_cma,
                                   origins = origins_i_tract[i,],
                                   destinations = destinations_j_h3,
                                   mode = "WALK",
@@ -216,7 +216,7 @@ for(i in 1:n_origins){
                                   lon = destinations_h3[,2])
   
   # Routing for origin i
-  ttm_i <- bind_rows(ttm_i,travel_time_matrix(r5_phoenix_cma,
+  ttm_i <- bind_rows(ttm_i,travel_time_matrix(r5_cma,
                                               origins = origins_i_tract[i,],
                                               destinations = destinations_j_h3,
                                               mode = "WALK",
