@@ -91,41 +91,20 @@ ggplot() +
   theme_minimal()
 ```
 
-Filter out areas of Phoenix attached from the main area:
+How many named areas are there in this map?
+```{r}
+ggplot() +
+  geom_sf(data = phoenix_cbsa,
+          fill = "lightgray") +
+  geom_sf(data = phoenix_urban,
+          aes(fill = NAME10)) +
+  theme_minimal()
+```
 
+Filter Phoenix-Mesa:
 ```{r}
 phoenix_urban <- phoenix_urban |>
-  filter(!str_detect(NAME10, "Tucson"))
-
-phoenix_urban <- phoenix_urban |>
-  filter(!str_detect(NAME10, "Wickenburg"))
-
-phoenix_urban <- phoenix_urban |>
-  filter(!str_detect(NAME10, "Maricopa"))
-
-phoenix_urban <- phoenix_urban |>
-  filter(!str_detect(NAME10, "Casa Grande"))
-
-phoenix_urban <- phoenix_urban |>
-  filter(!str_detect(NAME10, "Arizona City"))
-
-phoenix_urban <- phoenix_urban |>
-  filter(!str_detect(NAME10, "Eloy"))
-
-phoenix_urban <- phoenix_urban |>
-  filter(!str_detect(NAME10, "Coolidge"))
-
-phoenix_urban <- phoenix_urban |>
-  filter(!str_detect(NAME10, "San Manuel"))
-
-phoenix_urban <- phoenix_urban |>
-  filter(!str_detect(NAME10, "Superior"))
-
-phoenix_urban <- phoenix_urban |>
-  filter(!str_detect(NAME10, "Florence"))
-
-phoenix_urban <- phoenix_urban |>
-  filter(!str_detect(NAME10, "Estrella"))
+  filter(NAME10 == "Phoenix--Mesa, AZ")
 ```
 
 Plot Phoenix urban:
@@ -141,10 +120,10 @@ ggplot() +
 
 
 Obtain the Phoenix tracts:
-
 ```{r}
 phoenix_tracts <- az_tracts |>
-  st_filter(phoenix_urban, .predicate = st_intersects)
+  st_filter(phoenix_urban, 
+            .predicate = st_intersects)
 ```
 
 Plot Phoenix's urban tracts within the CBSA:
@@ -158,131 +137,6 @@ ggplot() +
           fill = NA) +
   theme_minimal()
 ```
-
-<!--
-## Geohashes
-
-Use the coordinates of the centroid of Phoenix CBSA to obtain h3 polygons:
-
-```{r}
-coords <- st_centroid(phoenix_cbsa) |>
-  st_coordinates()
-
-print(coords)
-```
-
-
-```{r}
-phoenix_tracts <- az_tracts |>
-  st_intersection(phoenix_urban)
-```
-
-Retrieve h3 geohashing at a resolution of 4 to identify Phoenix:
-
-```{r}
-phoenix_h3 <- geo_to_h3(c(rev(coords)),
-                             res = 4) |>
-
-# nashville coordinates were taken from the generated coords in the chunk above (but the order is reversed).
-  
-    k_ring(2)
-
-# k_ring sets the number of h3 rings to generate around the initial h3 point, typically 2 or 3 are required depending on the CBSA. 
-
-ggplot() + 
-  geom_sf(data = (h3_to_geo_boundary_sf(phoenix_h3)),
-          aes(fill = h3_index)) +
-    geom_sf(data = phoenix_cbsa,
-          color = "red",
-          fill = NA) +
-  geom_sf(data = phoenix_urban,
-          color = "blue",
-          fill = NA) +
-  theme_minimal()
-
-print.listof(h3_to_geo_boundary_sf(phoenix_h3))
-```
-
-Keep only the h3 indices that overlap with urban Phoenix (but discard any that overlap 0-10%):
-
-```{r}
-phoenix_h3 = c("8448e97ffffffff", "8448ebbffffffff", "8429b6dffffffff", "8429b69ffffffff", "8448eb9ffffffff", "8448eb1ffffffff", "8448eb3ffffffff", "8429b65ffffffff", "8429b61ffffffff")
-
-# phoenix_h3 = c("8448e97ffffffff", "8448e95ffffffff", "8448ebbffffffff", "8429b6dffffffff", "8429b69ffffffff", "8448e83ffffffff", "8448eb9ffffffff", "8448eb1ffffffff", "8448eb3ffffffff",
-# "8429b65ffffffff", "8429b6bffffffff", "8448e81ffffffff", "8448e87ffffffff", "8448e8dffffffff", "8448e85ffffffff", "8448eabffffffff")
-
-# take the h3 list and count which ones need to be included (going in a spiral from the center point)
-```
-
-Plot kept indices:
-```{r}
-ggplot() + 
-  geom_sf(data = h3_to_geo_boundary_sf(phoenix_h3),
-          aes(fill = h3_index)) +
-  geom_sf(data = phoenix_cbsa,
-          color = "red",
-          fill = NA) +
-  geom_sf(data = phoenix_urban,
-          color = "blue",
-          fill = NA) +
-  theme_minimal()
-```
-
-Obtain children hashes at a higher resolution (8):
-
-```{r}
-phoenix_h3_res6 <- phoenix_h3 |> 
-  purrr::map(\(x) h3_to_children(x, res = 6)) |>
-  unlist()
-```
-
-Choose only hexagons that touch urban Phoenix:
-
-```{r}
-phoenix_h3_res6 <- h3_to_geo_boundary_sf(phoenix_h3_res6) |>
-  st_transform(crs = st_crs(phoenix_urban)) |>
-  st_intersection(phoenix_urban)
-
-phoenix_h3_res6 <- phoenix_h3_res6 |> 
-  pull(h3_index)
-```
-
-Plot resolution 8 hashes within Phoenix:
-
-```{r}
-ggplot() + 
-  geom_sf(data = h3_to_geo_boundary_sf(phoenix_h3_res6)) +
-  geom_sf(data = phoenix_cbsa,
-          color = "red",
-          fill = NA) +
-  geom_sf(data = phoenix_urban,
-          color = "blue",
-          fill = NA) +
-  theme_minimal()
-```
-
-The area of these polygons is quite large for the purpose of routing by walking:
-```{r}
-h3_to_geo_boundary_sf(phoenix_h3_res6) |>
-  st_area()
-```
-
-We aim to have smaller polygons for this. Resolution 13 is appropriate, as shown in this sample:
-```{r}
-phoenix_h3_res13 <- phoenix_h3_res6[1] |> 
-  purrr::map(\(x) h3_to_children(x, res = 13)) |>
-  unlist()
-```
-
-
-Obtain a sample children at resolution 13 (average area is \~50.71 $m^2$):
-```{r}
-h3_to_geo_boundary_sf(phoenix_h3_res13) |>
-  st_area() |> summary()
-```
-
-**Do not save the h3 geohashes at resolution 13: too heavy. Instead save the geohashes at resolution 6 and obtain resolution 13 when needed.**
--->
 
 Save data objects:
 ```{r}

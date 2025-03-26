@@ -1,5 +1,5 @@
 ---
-title: "Phoenix Arizona Ped Sheds"
+title: "Atlanta Georgia Ped Sheds"
 ---
 
 A [ped shed](https://pedshed.net/?page_id=5), also called a pedestrian shed, is the measure of how far a person can walk starting at a given location within a given time range. This is heavily dependent on street layouts, which can impact how long it would take a person to reach \_. This term will be used interchangeably with "walksheds" throughout this notebook.
@@ -30,21 +30,28 @@ Load data:
 ```{r load files part 1}
 # Tracts
 load(file = glue::glue(here::here(),
-                       "/data/phoenix_tracts.rda"))
+                       "/data/atlanta_tracts.rda"))
 
 # Urban boundaries
 load(file = glue::glue(here::here(),
-                       "/data/phoenix_urban.rda"))
+                       "/data/atlanta_urban.rda"))
 
 # CBSA boundary
 load(file = glue::glue(here::here(),
-                       "/data/phoenix_cbsa.rda"))
+                       "/data/atlanta_cbsa.rda"))
 ```
 
-OSM data was previously downloaded. If the file is too large, an alternative is to download from [Interline](https://app.interline.io/osm_extracts/interactive_view).
+Bounding box of CBSA:
+```{r}
+st_bbox(atlanta_cbsa)
+```
+
+## Network data
+
+Retrieve OSM data from [BBBike](https://extract.bbbike.org) using the coordinates of the bounding box. It will be a proto-buffer file (pbf). Save under `data-raw/r5_graph/$CITY_NAME$`.
 
 ```{r set up r5 path}
-r5_path <- file.path(glue::glue(here::here(), "/data-raw/r5_graph/Phoenix/"))
+r5_path <- file.path(glue::glue(here::here(), "/data-raw/r5_graph/Atlanta/"))
 # fix pathing when possible
 ```
 
@@ -103,7 +110,7 @@ The origins are coordinates of centroids tracts and the destinations the coordin
 
 Obtain the tract centroids (the geometry is degenerate and needs to be fixed):
 ```{r prepare-inputs}
-origins_da_phoenix <- phoenix_tracts |>
+origins_da_atlanta <- atlanta_tracts |>
   st_make_valid() |>
   st_centroid() |>
   # Transform to lat-long
@@ -112,8 +119,8 @@ origins_da_phoenix <- phoenix_tracts |>
 
 Organize the data for the origins to match the format expected by {r5r} (id, lon, lat):
 ```{r}
-origins_i_tract <- data.frame(id = phoenix_tracts$GEOID,
-                           origins_da_phoenix |>
+origins_i_tract <- data.frame(id = atlanta_tracts$GEOID,
+                           origins_da_atlanta |>
                           st_coordinates()) |>
   rename(lon = X, lat = Y) |>
   dplyr::select(id, lon, lat)
@@ -236,7 +243,7 @@ Retrieve the h3 areas as multipolygons:
 ```{r}
 start.time <- Sys.time()
 
-phoenix_walksheds <- ttm_i |> 
+atlanta_walksheds <- ttm_i |> 
   group_by(from_id) |>
   group_map(~ h3_set_to_multi_polygon(.x$to_id),
             .keep = TRUE)
@@ -250,7 +257,7 @@ The above chunk took about 52 min in Antonio's system Rogue.
 
 Obtain the GEOIDs of the walksheds:
 ```{r}
-phoenix_walkshed_IDs <- ttm_i |>
+atlanta_walkshed_IDs <- ttm_i |>
   group_by(from_id) |>
   summarize(from_id = first(from_id),
             .groups = "drop")
@@ -260,8 +267,8 @@ Convert to simple features identified by the origin:
 ```{r}
 start.time <- Sys.time()
 
-phoenix_walksheds <- data.frame(GEOID = phoenix_walkshed_IDs$from_id,
-                         geometry = purrr::map_df(phoenix_walksheds,
+atlanta_walksheds <- data.frame(GEOID = atlanta_walkshed_IDs$from_id,
+                         geometry = purrr::map_df(atlanta_walksheds,
                             tibble::as_tibble)) |>
   st_as_sf(crs = 4326)
 
@@ -272,17 +279,14 @@ time.taken
 
 Verify the catchments:
 ```{r}
-test_unit = sample.int(nrow(phoenix_walksheds), 1)
-
-#roads <- phoenix_urban_network |>
-#  st_intersection(phoenix_walksheds_da[test_unit,])
+test_unit = sample.int(nrow(atlanta_walksheds), 1)
 
 ggplot() +
-  geom_sf(data = phoenix_tracts |>
-            filter(GEOID == phoenix_walksheds$GEOID[test_unit]),
+  geom_sf(data = atlanta_tracts |>
+            filter(GEOID == atlanta_walksheds$GEOID[test_unit]),
           color = "black",
           fill= "lightgray") + 
-  geom_sf(data = phoenix_walksheds[test_unit,],
+  geom_sf(data = atlanta_walksheds[test_unit,],
           color = "blue",
           fill = NA,
           linewidth = 1) #+
@@ -292,9 +296,9 @@ ggplot() +
 Save walksheds:
 ```{r save origin and destination files}
 # Origins
-save(phoenix_walksheds, 
+save(atlanta_walksheds, 
      file = glue::glue(here::here(),
-                       "/data/phoenix_walksheds.rda"),
+                       "/data/atlanta_walksheds.rda"),
      compress = "bzip2")
 
 ```
