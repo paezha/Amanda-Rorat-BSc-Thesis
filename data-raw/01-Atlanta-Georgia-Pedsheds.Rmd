@@ -1,0 +1,304 @@
+---
+title: "Atlanta Georgia Ped Sheds"
+---
+
+A [ped shed](https://pedshed.net/?page_id=5), also called a pedestrian shed, is the measure of how far a person can walk starting at a given location within a given time range. This is heavily dependent on street layouts, which can impact how long it would take a person to reach \_. This term will be used interchangeably with "walksheds" throughout this notebook.
+
+Load packages:
+
+```{r}
+options(java.parameters = "-Xmx30G")
+library(dplyr) # A Grammar of Data Manipulation
+library(ggraph) # An Implementation of Grammar of Graphics for Graphs and Networks
+library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics
+library(glue) # Interpreted String Literals
+library(here) # A Simpler Way to Find Your Files
+library(igraph) # Network Analysis and Visualization
+library(sf) # Simple Features for R
+library(sfnetworks) # Tidy Geospatial Networks
+library(tidygraph) # A Tidy API for Graph Manipulation
+library(tidyr) # Tidy Messy Data
+library(r5r) # Rapid Realistic Routing with 'R5'
+library(h3) # R Bindings for H3 # R Bindings for H3
+library(purrr) # Functional Programming Tools
+library(units) # Measurement Units for R Vectors
+```
+
+## Setting up the Data:
+
+Load data:
+```{r load files part 1}
+# Tracts
+load(file = glue::glue(here::here(),
+                       "/data/atlanta_tracts.rda"))
+
+# Urban boundaries
+load(file = glue::glue(here::here(),
+                       "/data/atlanta_urban.rda"))
+
+# CBSA boundary
+load(file = glue::glue(here::here(),
+                       "/data/atlanta_cbsa.rda"))
+```
+
+Bounding box of CBSA:
+```{r}
+st_bbox(atlanta_cbsa)
+```
+
+## Network data
+
+Retrieve OSM data from [BBBike](https://extract.bbbike.org) using the coordinates of the bounding box. It will be a proto-buffer file (pbf). Save under `data-raw/r5_graph/$CITY_NAME$`.
+
+```{r set up r5 path}
+r5_path <- file.path(glue::glue(here::here(), "/data-raw/r5_graph/Atlanta/"))
+# fix pathing when possible
+```
+
+Build the graph:
+```{r build-graph}
+r5_cma <- setup_r5(data_path = r5_path, 
+                            verbose = FALSE)
+
+# requires JDK version 21 (exactly version 21) to run
+```
+
+<!--
+Convert network to sf:
+```{r set up network}
+phoenix_network <- street_network_to_sf(r5_cma)
+```
+
+Verify the network:
+```{r}
+ggplot(phoenix_network$edges) + 
+  geom_sf(alpha = 0.5) +
+  geom_sf(data = phoenix_urban,
+          color = "blue",
+          fill = NA)
+```
+
+This is the network for the whole state. It is wasteful to save it all just for the sake of Phoenix. 
+
+To reduce the size of the object, crop the network using a buffer around urban Phoenix:
+```{r}
+phoenix_urban_edges <- st_crop(phoenix_network$edges |>
+                                    st_transform(crs = 26912),
+                              phoenix_urban |>
+                                st_transform(crs = 26912) |>
+                                st_buffer(dist = 1000) |> 
+                                st_bbox()) |>
+  st_transform(st_crs(phoenix_network$vertices))
+```
+
+Use only the edges; keep in mind that this object is only for cartographic analysis, not for routing.:
+```{r}
+phoenix_urban_network <- phoenix_urban_edges
+```
+
+Check the network again:
+```{r}
+ggplot(phoenix_urban_network) + 
+  geom_sf(alpha = 0.5) +
+  geom_sf(data = phoenix_urban,
+          color = "blue",
+          fill = NA)
+```
+-->
+
+The origins are coordinates of centroids tracts and the destinations the coordinates of the h3 geohashes. 
+
+Obtain the tract centroids (the geometry is degenerate and needs to be fixed):
+```{r prepare-inputs}
+origins_da_atlanta <- atlanta_tracts |>
+  st_make_valid() |>
+  st_centroid() |>
+  # Transform to lat-long
+  st_transform(crs = st_crs(4326))
+```
+
+Organize the data for the origins to match the format expected by {r5r} (id, lon, lat):
+```{r}
+origins_i_tract <- data.frame(id = atlanta_tracts$GEOID,
+                           origins_da_atlanta |>
+                          st_coordinates()) |>
+  rename(lon = X, lat = Y) |>
+  dplyr::select(id, lon, lat)
+```
+
+This is the maximum area with a walking speed of 3.6 km/h and a time of 15 min:
+```{r}
+pi * (units::set_units(3.6, km/h) |> set_units(m/min) * set_units(15, min))^2
+```
+
+Obtain an h3 that covers a larger area:
+```{r}
+h3_i <- geo_to_h3(c(origins_i_tract$lat[1], origins_i_tract$lon[1]), res = 8) |>
+  k_ring(1) |> h3_set_to_multi_polygon()
+
+h3_i |> st_area()
+```
+
+Obtain the children of the chosen polygon(s):
+```{r}
+i <- 1
+h3_i <- geo_to_h3(c(origins_i_tract$lat[i], origins_i_tract$lon[i]), res = 7) |>
+  k_ring(1)
+
+h3_j <- purrr::map(h3_i,
+                   .f = ~ h3_to_children(.x,
+                                  res = 13)) |>
+  unlist()
+```
+
+Check coverage of the children (make sure that the parents are fully covered):
+```{r}
+ggplot() + geom_sf(data = h3_i |> h3_set_to_multi_polygon()) + 
+  geom_sf(data = h3_to_geo_boundary_sf(h3_j), fill = NA)
+```
+
+Obtain the coordinates of the h3 destinations:
+```{r set destinations}
+destinations_h3 <- h3_to_geo(h3_j)
+```
+
+Likewise, organize the data for the origins to match the format expected by {r5r} (id, lon, lat):
+```{r set destination sites}
+destinations_j_h3 <- data.frame(id = h3_j, 
+                             lat = destinations_h3[,1],
+                             lon = destinations_h3[,2])
+```
+
+Test routing with a single origin:
+```{r}
+ttm_i <- travel_time_matrix(r5_cma,
+                                  origins = origins_i_tract[i,],
+                                  destinations = destinations_j_h3,
+                                  mode = "WALK",
+                                  departure_datetime = as.POSIXct(strptime("2021-04-05 08:00:00", "%Y-%m-%d %H:%M:%S", tz = "EST5EDT")),
+                                  max_walk_time = 15, # minutes
+                                  max_trip_duration = 15)
+```
+
+Retrieve the walkshed as a multipolygon:
+```{r}
+walksheds_i <- h3_set_to_multi_polygon(ttm_i$to_id) |> 
+  as_tibble() |> st_as_sf(crs = 4326)
+```
+
+Compare the walkshed to the parent h3s:
+```{r}
+ggplot() +
+  geom_sf(data = h3_to_geo_boundary_sf(h3_i), 
+          fill = NA) +
+  # geom_sf(data = h3_to_geo_boundary_sf(h3_j), 
+  #         fill = "blue") +
+  geom_sf(data = walksheds_i)
+```
+
+Now implement for the rest of origins:
+```{r}
+n_origins <- nrow(origins_i_tract)
+
+start.time <- Sys.time()
+
+for(i in 1:n_origins){
+  
+  # Obtain the h3 polygons around the centroid of the tract at resolution 7
+  h3_i <- geo_to_h3(c(origins_i_tract$lat[i], origins_i_tract$lon[i]), res = 7) |>
+    k_ring(1)
+  
+  # Obtain the children of the res 7 polygons at resolution 13, whith are about 50 square meters in size
+  h3_j <- purrr::map(h3_i,
+                     .f = ~ h3_to_children(.x,
+                                           res = 13)) |>
+    unlist()
+  
+  # Obtain the coordinates of the res 13 polygons to use as destinations for origin i
+  destinations_h3 <- h3_to_geo(h3_j)
+  
+  # Organize the data for the origins to match the format expected by {r5r} (id, lon, lat)
+  destinations_j_h3 <- data.frame(id = h3_j, 
+                                  lat = destinations_h3[,1],
+                                  lon = destinations_h3[,2])
+  
+  # Routing for origin i
+  ttm_i <- bind_rows(ttm_i,travel_time_matrix(r5_cma,
+                                              origins = origins_i_tract[i,],
+                                              destinations = destinations_j_h3,
+                                              mode = "WALK",
+                                              departure_datetime = as.POSIXct(strptime("2021-04-05 08:00:00", "%Y-%m-%d %H:%M:%S", tz = "EST5EDT")),
+                                              max_walk_time = 15, # minutes
+                                              max_trip_duration = 15))
+}
+
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+time.taken
+```
+
+The above chunk took 1.28 hours in Antonio's system Rogue.
+
+Retrieve the h3 areas as multipolygons:
+```{r}
+start.time <- Sys.time()
+
+atlanta_walksheds <- ttm_i |> 
+  group_by(from_id) |>
+  group_map(~ h3_set_to_multi_polygon(.x$to_id),
+            .keep = TRUE)
+
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+time.taken
+```
+
+The above chunk took about 52 min in Antonio's system Rogue.
+
+Obtain the GEOIDs of the walksheds:
+```{r}
+atlanta_walkshed_IDs <- ttm_i |>
+  group_by(from_id) |>
+  summarize(from_id = first(from_id),
+            .groups = "drop")
+```
+
+Convert to simple features identified by the origin:
+```{r}
+start.time <- Sys.time()
+
+atlanta_walksheds <- data.frame(GEOID = atlanta_walkshed_IDs$from_id,
+                         geometry = purrr::map_df(atlanta_walksheds,
+                            tibble::as_tibble)) |>
+  st_as_sf(crs = 4326)
+
+end.time <- Sys.time()
+time.taken <- end.time - start.time
+time.taken
+```
+
+Verify the catchments:
+```{r}
+test_unit = sample.int(nrow(atlanta_walksheds), 1)
+
+ggplot() +
+  geom_sf(data = atlanta_tracts |>
+            filter(GEOID == atlanta_walksheds$GEOID[test_unit]),
+          color = "black",
+          fill= "lightgray") + 
+  geom_sf(data = atlanta_walksheds[test_unit,],
+          color = "blue",
+          fill = NA,
+          linewidth = 1) #+
+  #geom_sf(data = roads)
+```
+
+Save walksheds:
+```{r save origin and destination files}
+# Origins
+save(atlanta_walksheds, 
+     file = glue::glue(here::here(),
+                       "/data/atlanta_walksheds.rda"),
+     compress = "bzip2")
+
+```
