@@ -237,7 +237,7 @@ time.taken <- end.time - start.time
 time.taken
 ```
 
-The above chunk took 1.28 hours in Antonio's system Rogue.
+The above chunk took 1.28 hours in Antonio's system Rogue and 2.99 hours in Amanda's system.
 
 Retrieve the h3 areas as multipolygons:
 ```{r}
@@ -253,7 +253,7 @@ time.taken <- end.time - start.time
 time.taken
 ```
 
-The above chunk took about 52 min in Antonio's system Rogue.
+The above chunk took about 52 min in Antonio's system Rogue and 1.85 hours in Amanda's system.
 
 Obtain the GEOIDs of the walksheds:
 ```{r}

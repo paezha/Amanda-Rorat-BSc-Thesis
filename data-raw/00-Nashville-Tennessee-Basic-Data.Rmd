@@ -1,10 +1,10 @@
 ---
-title: "Atlanta Georgia Basic Data"
+title: "Nashville Tennessee Basic Data"
 ---
 
-# Phoenix Arizona Data
+# Nashville Tennessee Data
 
-This will be the basic data pre-processing work for Phoenix, Arizona. The other city notebooks follow the same steps but with different sets of CBSA data.
+This will be the basic data pre-processing work for Nashville Tennessee. The other city notebooks follow the same steps but with different sets of CBSA data.
 
 Estimated time to run: a few minutes
 
@@ -29,41 +29,41 @@ Obtain the census tracts. Note that [{tidycensus}](https://walker-data.com/tidyc
 ```{r}
 options(tigris_use_cache = TRUE)
 
-ga_tracts <- get_decennial(geography = "tract",
+tn_tracts <- get_decennial(geography = "tract",
                            variables = "H1_001N",
-                           state = "Georgia",
+                           state = "Tennessee",
                            year = 2020,
                            geometry = TRUE
 )
 
-ga_city <- urban_areas(year = 2020) |> 
-  filter(str_detect(NAME10, "GA"))
+tn_city <- urban_areas(year = 2020) |> 
+  filter(str_detect(NAME10, "TN"))
 ```
 
 A [core-based statistical area](https://en.wikipedia.org/wiki/Core-based_statistical_area) is a generous definition of the area of interest, since it contains an urban nucleus (say, Houston) and also all neighboring communities that are tightly integrated with it. It is important to note that some of the neighboring communities share boundaries with the urban nucleus, but some are disconnected.
 
 ```{r}
-atlanta_cbsa <- core_based_statistical_areas(year = 2020) |>
-  filter(str_detect(NAME, "Atlanta"))
+nashville_cbsa <- core_based_statistical_areas(year = 2020) |>
+  filter(str_detect(NAME, "Nashville"))
 ```
 
 A much stricter definition of the area of interest would result from using the city boundaries, which can be obtained using `urban_areas()`:
 
 ```{r}
-atlanta_city <- urban_areas(year = 2020) |> 
-  filter(str_detect(NAME10, "Atlanta"))
+nashville_city <- urban_areas(year = 2020) |> 
+  filter(str_detect(NAME10, "Nashville"))
 ```
 
 Plot the location of Atlanta CBSA within Georgia and its tracts:
 
 ```{r}
 ggplot() +
-  geom_sf(data = ga_tracts,
+  geom_sf(data = tn_tracts,
           fill = "lightgrey") +
-  geom_sf(data = atlanta_cbsa,
+  geom_sf(data = nashville_cbsa,
           color = "red",
           fill = NA) +
-  geom_sf(data = ga_city,
+  geom_sf(data = tn_city,
           color = "blue",
           fill = NA) +
   theme_minimal()
@@ -72,16 +72,16 @@ ggplot() +
 Select all urban areas in Atlanta CBSA:
 
 ```{r}
-atlanta_urban <- st_filter(ga_city, atlanta_cbsa)
+nashville_urban <- st_filter(tn_city, nashville_cbsa)
 ```
 
 Plot urban boundaries within the Phoenix CBSA:
 
 ```{r}
 ggplot() +
-  geom_sf(data = atlanta_cbsa,
+  geom_sf(data = nashville_cbsa,
           fill = "lightgray") +
-  geom_sf(data = atlanta_urban,
+  geom_sf(data = nashville_urban,
           color = "blue",
           fill = NA) +
   theme_minimal()
@@ -90,25 +90,25 @@ ggplot() +
 How many named areas are there in this map?
 ```{r}
 ggplot() +
-  geom_sf(data = atlanta_cbsa,
+  geom_sf(data = nashville_cbsa,
           fill = "lightgray") +
-  geom_sf(data = atlanta_urban,
+  geom_sf(data = nashville_urban,
           aes(fill = NAME10)) +
   theme_minimal()
 ```
 
 Filter Houston:
 ```{r}
-atlanta_urban <- atlanta_urban |>
-  filter(NAME10 == "Atlanta, GA")
+ nashville_urban <- nashville_urban |>
+  filter(NAME10 == "Nashville-Davidson, TN")
 ```
 
 Plot Atlanta urban:
 ```{r}
 ggplot() +
-  geom_sf(data = atlanta_cbsa,
+  geom_sf(data = nashville_cbsa,
           fill = "lightgray") +
-  geom_sf(data = atlanta_urban,
+  geom_sf(data = nashville_urban,
           color = "blue",
           fill = NA) +
   theme_minimal()
@@ -117,17 +117,17 @@ ggplot() +
 
 Obtain the tracts:
 ```{r}
-atlanta_tracts <- ga_tracts |>
-  st_filter(atlanta_urban, 
+nashville_tracts <- tn_tracts |>
+  st_filter(nashville_urban, 
             .predicate = st_intersects)
 ```
 
 Plot urban tracts within the CBSA:
 ```{r}
 ggplot() +
-  geom_sf(data = atlanta_cbsa,
+  geom_sf(data = nashville_cbsa,
           fill = "lightgray") +
-  geom_sf(data = atlanta_tracts,
+  geom_sf(data = nashville_tracts,
           color = "blue",
           fill = NA) +
   theme_minimal()
@@ -136,20 +136,20 @@ ggplot() +
 Save data objects:
 ```{r}
 # Tracts
-save(atlanta_tracts, 
+save(nashville_tracts, 
      file = glue::glue(here::here(),
-                       "/data/atlanta_tracts.rda"),
+                       "/data/nashville_tracts.rda"),
      compress = "bzip2")
 
 # Urban boundaries
-save(atlanta_urban, 
+save(nashville_urban, 
      file = glue::glue(here::here(),
-                       "/data/atlanta_urban.rda"),
+                       "/data/nashville_urban.rda"),
      compress = "bzip2")
 
 # CBSA boundary
-save(atlanta_cbsa, 
+save(nashville_cbsa, 
      file = glue::glue(here::here(),
-                       "/data/atlanta_cbsa.rda"),
+                       "/data/nashville_cbsa.rda"),
      compress = "bzip2")
 ```

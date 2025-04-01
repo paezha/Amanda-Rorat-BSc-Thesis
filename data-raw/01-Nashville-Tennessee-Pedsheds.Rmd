@@ -1,5 +1,5 @@
 ---
-title: "Houston Texas Ped Sheds"
+title: "Nashville Tennessee Ped Sheds"
 ---
 
 A [ped shed](https://pedshed.net/?page_id=5), also called a pedestrian shed, is the measure of how far a person can walk starting at a given location within a given time range. This is heavily dependent on street layouts, which can impact how long it would take a person to reach \_. This term will be used interchangeably with "walksheds" throughout this notebook.
@@ -30,20 +30,20 @@ Load data:
 ```{r load files part 1}
 # Tracts
 load(file = glue::glue(here::here(),
-                       "/data/houston_tracts.rda"))
+                       "/data/nashville_tracts.rda"))
 
 # Urban boundaries
 load(file = glue::glue(here::here(),
-                       "/data/houston_urban.rda"))
+                       "/data/nashville_urban.rda"))
 
 # CBSA boundary
 load(file = glue::glue(here::here(),
-                       "/data/houston_cbsa.rda"))
+                       "/data/nashville_cbsa.rda"))
 ```
 
 Bounding box of CBSA:
 ```{r}
-st_bbox(houston_cbsa)
+st_bbox(nashville_cbsa)
 ```
 
 ## Network data
@@ -51,7 +51,8 @@ st_bbox(houston_cbsa)
 Retrieve OSM data from [BBBike](https://extract.bbbike.org) using the coordinates of the bounding box. It will be a proto-buffer file (pbf). Save under `data-raw/r5_graph/$CITY_NAME$`.
 
 ```{r set up r5 path}
-r5_path <- file.path(glue::glue(here::here(), "/data-raw/r5_graph/Houston/"))
+r5_path <- file.path(glue::glue(here::here(), "/data-raw/r5_graph/Nashville/"))
+# fix pathing when possible
 ```
 
 Build the graph:
@@ -62,11 +63,54 @@ r5_cma <- setup_r5(data_path = r5_path,
 # requires JDK version 21 (exactly version 21) to run
 ```
 
+<!--
+Convert network to sf:
+```{r set up network}
+phoenix_network <- street_network_to_sf(r5_cma)
+```
+
+Verify the network:
+```{r}
+ggplot(phoenix_network$edges) + 
+  geom_sf(alpha = 0.5) +
+  geom_sf(data = phoenix_urban,
+          color = "blue",
+          fill = NA)
+```
+
+This is the network for the whole state. It is wasteful to save it all just for the sake of Phoenix. 
+
+To reduce the size of the object, crop the network using a buffer around urban Phoenix:
+```{r}
+phoenix_urban_edges <- st_crop(phoenix_network$edges |>
+                                    st_transform(crs = 26912),
+                              phoenix_urban |>
+                                st_transform(crs = 26912) |>
+                                st_buffer(dist = 1000) |> 
+                                st_bbox()) |>
+  st_transform(st_crs(phoenix_network$vertices))
+```
+
+Use only the edges; keep in mind that this object is only for cartographic analysis, not for routing.:
+```{r}
+phoenix_urban_network <- phoenix_urban_edges
+```
+
+Check the network again:
+```{r}
+ggplot(phoenix_urban_network) + 
+  geom_sf(alpha = 0.5) +
+  geom_sf(data = phoenix_urban,
+          color = "blue",
+          fill = NA)
+```
+-->
+
 The origins are coordinates of centroids tracts and the destinations the coordinates of the h3 geohashes. 
 
 Obtain the tract centroids (the geometry is degenerate and needs to be fixed):
 ```{r prepare-inputs}
-origins_da_houston <- houston_tracts |>
+origins_da_nashville <- nashville_tracts |>
   st_make_valid() |>
   st_centroid() |>
   # Transform to lat-long
@@ -75,8 +119,8 @@ origins_da_houston <- houston_tracts |>
 
 Organize the data for the origins to match the format expected by {r5r} (id, lon, lat):
 ```{r}
-origins_i_tract <- data.frame(id = houston_tracts$GEOID,
-                           origins_da_houston |>
+origins_i_tract <- data.frame(id = nashville_tracts$GEOID,
+                           origins_da_nashville |>
                           st_coordinates()) |>
   rename(lon = X, lat = Y) |>
   dplyr::select(id, lon, lat)
@@ -97,7 +141,7 @@ h3_i |> st_area()
 
 Obtain the children of the chosen polygon(s):
 ```{r}
-i <- 5
+i <- 1
 h3_i <- geo_to_h3(c(origins_i_tract$lat[i], origins_i_tract$lon[i]), res = 7) |>
   k_ring(1)
 
@@ -108,7 +152,7 @@ h3_j <- purrr::map(h3_i,
 ```
 
 Check coverage of the children (make sure that the parents are fully covered):
-```{r}
+```{r, eval-FALSE}
 ggplot() + geom_sf(data = h3_i |> h3_set_to_multi_polygon()) + 
   geom_sf(data = h3_to_geo_boundary_sf(h3_j), fill = NA)
 ```
@@ -193,13 +237,13 @@ time.taken <- end.time - start.time
 time.taken
 ```
 
-The above chunk took 1.37 hours in Antonio's system Rogue and 3.07 hours in Amanda's system.
+The above chunk took 32.44 mins in Amanda's system.
 
 Retrieve the h3 areas as multipolygons:
 ```{r}
 start.time <- Sys.time()
 
-houston_walksheds <- ttm_i |> 
+nashville_walksheds <- ttm_i |> 
   group_by(from_id) |>
   group_map(~ h3_set_to_multi_polygon(.x$to_id),
             .keep = TRUE)
@@ -209,11 +253,11 @@ time.taken <- end.time - start.time
 time.taken
 ```
 
-The above chunk took about 1.18 h in Antonio's system Rogue and 1.94 hours in Amanda's system.
+The above chunk took about 22.77 minsin Amanda's system.
 
 Obtain the GEOIDs of the walksheds:
 ```{r}
-houston_walkshed_IDs <- ttm_i |>
+nashville_walkshed_IDs <- ttm_i |>
   group_by(from_id) |>
   summarize(from_id = first(from_id),
             .groups = "drop")
@@ -223,8 +267,8 @@ Convert to simple features identified by the origin:
 ```{r}
 start.time <- Sys.time()
 
-houston_walksheds <- data.frame(GEOID = houston_walkshed_IDs$from_id,
-                         geometry = purrr::map_df(houston_walksheds,
+nashville_walksheds <- data.frame(GEOID = nashville_walkshed_IDs$from_id,
+                         geometry = purrr::map_df(nashville_walksheds,
                             tibble::as_tibble)) |>
   st_as_sf(crs = 4326)
 
@@ -235,14 +279,14 @@ time.taken
 
 Verify the catchments:
 ```{r}
-test_unit = sample.int(nrow(houston_walksheds), 1)
+test_unit = sample.int(nrow(nashville_walksheds), 1)
 
 ggplot() +
-  geom_sf(data = houston_tracts |>
-            filter(GEOID == houston_walksheds$GEOID[test_unit]),
+  geom_sf(data = nashville_tracts |>
+            filter(GEOID == nashville_walksheds$GEOID[test_unit]),
           color = "black",
           fill= "lightgray") + 
-  geom_sf(data = houston_walksheds[test_unit,],
+  geom_sf(data = nashville_walksheds[test_unit,],
           color = "blue",
           fill = NA,
           linewidth = 1) #+
@@ -252,9 +296,9 @@ ggplot() +
 Save walksheds:
 ```{r save origin and destination files}
 # Origins
-save(houston_walksheds, 
+save(nashville_walksheds, 
      file = glue::glue(here::here(),
-                       "/data/houston_walksheds.rda"),
+                       "/data/nashville_walksheds.rda"),
      compress = "bzip2")
 
 ```
