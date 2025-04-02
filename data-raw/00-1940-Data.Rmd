@@ -29,5 +29,56 @@ us_1940_tract <- st_read(glue(here::here(),
                                "/data-raw/1940-data/nhgis0001_shape/nhgis0001_shapefile_tl2000_us_tract_1940/US_tract_1940.shp"))
 ```
 
+Check whether the geometry of 1940 tracts is valid:
+```{r}
+sum(st_is_valid(us_1940_tract))
+```
 
+There is at least one invalid geometry. Fix:
+```{r}
+us_1940_tract <- us_1940_tract |>
+  st_make_valid()
+```
+
+Read urban boundaries and tracts:
+```{r}
+load(glue::glue(here::here(), "/data/houston_cbsa.rda"))
+load(glue::glue(here::here(), "/data/houston_tracts.rda"))
+```
+
+Check the crs:
+```{r}
+st_crs(us_1940_tract)
+st_crs(houston_cbsa)
+```
+
+Transform the 1940 tracts to the same crs as Houston:
+```{r}
+us_1940_tract <- us_1940_tract |>
+  st_transform(crs = st_crs(houston_cbsa))
+```
+
+Check that the crs match:
+```{r}
+st_crs(us_1940_tract) == st_crs(houston_cbsa)
+```
+
+Filter 1940 tracts based on Houston CBSA:
+```{r}
+houston_1940_tracts <- us_1940_tract |>
+  st_filter(houston_cbsa)
+```
+
+Plot:
+```{r}
+ggplot() + 
+  geom_sf(data = houston_1940_tracts,
+          color = "blue",
+          fill = NA,
+          linewidth = 1) +
+  geom_sf(data = houston_tracts,
+          color = "red",
+          fill = NA,
+          linewidth = 0.1)
+```
 
