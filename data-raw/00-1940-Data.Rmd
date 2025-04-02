@@ -34,6 +34,26 @@ Check whether the geometry of 1940 tracts is valid:
 sum(st_is_valid(us_1940_tract))
 ```
 
+
+
+```{r load files part 1}
+# Tracts
+load(file = glue::glue(here::here(),
+                       "/data/houston_tracts.rda"))
+
+# Urban boundaries
+load(file = glue::glue(here::here(),
+                       "/data/houston_urban.rda"))
+
+# CBSA boundary
+load(file = glue::glue(here::here(),
+                       "/data/houston_cbsa.rda"))
+
+# Walksheds
+load(file = glue::glue(here::here(),
+                       "/data/houston_walksheds.rda"))
+```
+
 There is at least one invalid geometry. Fix:
 ```{r}
 us_1940_tract <- us_1940_tract |>
