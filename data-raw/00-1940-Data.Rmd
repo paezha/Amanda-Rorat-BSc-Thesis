@@ -29,5 +29,34 @@ us_1940_tract <- st_read(glue(here::here(),
                                "/data-raw/1940-data/nhgis0001_shape/nhgis0001_shapefile_tl2000_us_tract_1940/US_tract_1940.shp"))
 ```
 
+```{r load files part 1}
+# Tracts
+load(file = glue::glue(here::here(),
+                       "/data/houston_tracts.rda"))
+
+# Urban boundaries
+load(file = glue::glue(here::here(),
+                       "/data/houston_urban.rda"))
+
+# CBSA boundary
+load(file = glue::glue(here::here(),
+                       "/data/houston_cbsa.rda"))
+
+# Walksheds
+load(file = glue::glue(here::here(),
+                       "/data/houston_walksheds.rda"))
+```
+
+```{r}
+ggplot() +
+  geom_sf(data = us_1940_tract) +
+  theme_minimal()
+```
+
+```{r}
+houston_1940_tracts <- houston_cbsa |>
+  st_filter(us_1940_tract, 
+            .predicate = st_intersects)
+```
 
 
