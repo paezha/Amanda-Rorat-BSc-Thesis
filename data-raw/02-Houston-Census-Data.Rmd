@@ -1,0 +1,107 @@
+---
+title: "Houston Census Data"
+---
+
+```{r load packages}
+library(tidycensus)
+library(dplyr) # A Grammar of Data Manipulation
+library(ggraph) # An Implementation of Grammar of Graphics for Graphs and Networks
+library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics
+library(glue) # Interpreted String Literals
+library(here) # A Simpler Way to Find Your Files
+library(igraph) # Network Analysis and Visualization
+library(sf) # Simple Features for R
+library(sfnetworks) # Tidy Geospatial Networks
+library(tidygraph) # A Tidy API for Graph Manipulation
+library(tidyr) # Tidy Messy Data
+library(r5r) # Rapid Realistic Routing with 'R5'
+library(h3) # R Bindings for H3 # R Bindings for H3
+library(purrr) # Functional Programming Tools
+library(units) # Measurement Units for R Vectors
+```
+
+
+```{r}
+load(file = glue::glue(here::here(),
+                       "/data/houston_walksheds.rda"))
+```
+
+```{r}
+# Tracts
+load(file = glue::glue(here::here(),
+                       "/data/houston_tracts.rda"))
+
+# Urban boundaries
+load(file = glue::glue(here::here(),
+                       "/data/houston_urban.rda"))
+
+# CBSA boundary
+load(file = glue::glue(here::here(),
+                       "/data/houston_cbsa.rda"))
+```
+
+# Houston
+
+```{r}
+houston_walksheds <- houston_walksheds |>
+  mutate(area = as.numeric(st_area(geometry)))
+```
+
+```{r}
+# Median income in past 12 months: B06011_001 (2022), B19013_001 (2020)
+
+houston_income <- get_acs(
+  state = "Texas",
+  county = c("Harris County", "Fort Bend", "Brazoria", "Galveston", "Chambers", "Liberty", "Montgomery", "Waller", "San Jacinto"),
+  geography = "tract",
+  variables = c(medinc = "B06011_001"),
+  geometry = TRUE,
+  output = "wide",
+  year = 2022)
+```
+
+
+```{r}
+ggplot(houston_income, aes(fill = medincE)) + 
+  geom_sf() + 
+  theme_void() +
+  scale_fill_viridis_c(option = "turbo") 
+```
+
+```{r}
+ggplot(houston_income, aes(fill = medincE)) + 
+  geom_sf() + 
+  theme_void() +
+  scale_fill_viridis_c(option = "turbo") +
+  geom_sf(data = houston_tracts, fill = NA, color = "red")
+```
+```{r}
+houston_walksheds <- st_drop_geometry(houston_walksheds)
+```
+
+```{r}
+houston_income <- st_drop_geometry(houston_income)
+```
+
+```{r}
+houston_tracts_df <- houston_tracts |>
+  left_join(houston_walksheds |> select(GEOID, area), by = "GEOID") |>
+  left_join(houston_income |> select(GEOID, medincE), by = "GEOID")
+```
+
+```{r}
+ggplot(houston_tracts_df, aes(fill = area)) + 
+  geom_sf() + 
+  theme_void() +
+  scale_fill_viridis_c(option = "turbo") +
+  geom_sf(data = houston_tracts, fill = NA, color = "red")
+```
+
+```{r}
+ggplot(houston_tracts_df, aes(fill = medincE)) + 
+  geom_sf() + 
+  theme_void() +
+  scale_fill_viridis_c(option = "turbo") +
+  geom_sf(data = houston_tracts, fill = NA, color = "red")
+```
+
