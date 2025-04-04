@@ -1,5 +1,5 @@
 ---
-title: "Tampa Census Data"
+title: "Jacksonville Census Data"
 ---
 
 # Setup
@@ -8,7 +8,7 @@ title: "Tampa Census Data"
 library(tidycensus)
 library(tigris)
 library(dplyr) # A Grammar of Data Manipulation
-library(ggraph) # An Implementation of Grammar of Graphics for Graphs and Networks
+# library(ggraph) # An Implementation of Grammar of Graphics for Graphs and Networks
 library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics
 library(glue) # Interpreted String Literals
 library(here) # A Simpler Way to Find Your Files
@@ -82,7 +82,7 @@ black_p <- get_acs(
 
 ```{r}
 asian_p <- get_acs(
-  state = "Georgia",
+  state = "Florida",
   geography = "tract",
   variables = "B02001_005",
   geometry = TRUE,
@@ -228,6 +228,6 @@ ggscatter(jacksonville_tracts_df, x = "white_prop", y = "area", add = "reg.line"
 ```
 
 ```{r}
-ggscatter(jacksonville_tracts_df, x = "income", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Average Income in Census Tract", ylab = "Area of Walkshed in Square Meters", xlim = c(0, 155000)) +
+ggscatter(jacksonville_tracts_df, x = "income", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Average Income in Census Tract", ylab = "Area of Walkshed in Square Meters", xlim = c(0, 100000)) +
   stat_cor(label.x = 120000, label.y = 2000000) #label placement
 ```

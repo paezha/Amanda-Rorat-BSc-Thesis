@@ -8,7 +8,7 @@ title: "Nashville Census Data"
 library(tidycensus)
 library(tigris)
 library(dplyr) # A Grammar of Data Manipulation
-library(ggraph) # An Implementation of Grammar of Graphics for Graphs and Networks
+# library(ggraph) # An Implementation of Grammar of Graphics for Graphs and Networks
 library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics
 library(glue) # Interpreted String Literals
 library(here) # A Simpler Way to Find Your Files
@@ -229,6 +229,5 @@ ggscatter(nashville_tracts_df, x = "white_prop", y = "area", add = "reg.line", s
 
 ```{r}
 ggscatter(nashville_tracts_df, x = "income", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Average Income in Census Tract", ylab = "Area of Walkshed in Square Meters", font.label = c(5, "plain", "black")) +
-  stat_cor(label.x = 110000, label.y = 2000000) #label placement
+  stat_cor(label.x = 80000, label.y = 1500000) #label placement
 ```
-
