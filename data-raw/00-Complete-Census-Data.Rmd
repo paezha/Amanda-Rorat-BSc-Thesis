@@ -1,0 +1,51 @@
+---
+title: "00-Complete-Census-Data"
+---
+
+# Setup
+
+```{r}
+library(tidycensus)
+library(tigris)
+library(dplyr) # A Grammar of Data Manipulation
+library(ggraph) # An Implementation of Grammar of Graphics for Graphs and Networks
+library(ggplot2) # Create Elegant Data Visualisations Using the Grammar of Graphics
+library(glue) # Interpreted String Literals
+library(here) # A Simpler Way to Find Your Files
+library(igraph) # Network Analysis and Visualization
+library(sf) # Simple Features for R
+library(tidygraph) # A Tidy API for Graph Manipulation
+library(tidyr) # Tidy Messy Data
+library(purrr) # Functional Programming Tools
+library(units) # Measurement Units for R Vectors
+library(ggpubr)
+```
+
+```{r}
+load(file = glue::glue(here::here(),
+                       "/data/houston_tracts_df.rda"))
+
+load(file = glue::glue(here::here(),
+                       "/data/atlanta_tracts_df.rda"))
+```
+
+```{r}
+combined_df <- rbind(houston_tracts_df, atlanta_tracts_df)
+```
+
+# Graphs
+
+```{r}
+ggscatter(combined_df, x = "black_prop", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Proportion of Black Population in Census Tract", ylab = "Area of Walkshed in Square Meters", font.label = c(5, "plain", "black")) +
+  stat_cor(label.x = 0.75, label.y = 2000000) #label placement
+```
+
+```{r}
+ggscatter(combined_df, x = "white_prop", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Proportion of White Population in Census Tract", ylab = "Area of Walkshed in Square Meters", font.label = c(5, "plain", "black")) +
+  stat_cor(label.x = 0.75, label.y = 2000000) #label placement
+```
+
+```{r}
+ggscatter(combined_df, x = "income", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Average Income in Census Tract", ylab = "Area of Walkshed in Square Meters", xlim = c(0, 155000)) +
+  stat_cor(label.x = 120000, label.y = 2000000) #label placement
+```

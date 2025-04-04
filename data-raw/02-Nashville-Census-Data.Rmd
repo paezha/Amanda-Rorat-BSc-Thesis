@@ -1,5 +1,5 @@
 ---
-title: "Houston Census Data"
+title: "Nashville Census Data"
 ---
 
 # Setup
@@ -14,11 +14,8 @@ library(glue) # Interpreted String Literals
 library(here) # A Simpler Way to Find Your Files
 library(igraph) # Network Analysis and Visualization
 library(sf) # Simple Features for R
-library(sfnetworks) # Tidy Geospatial Networks
 library(tidygraph) # A Tidy API for Graph Manipulation
 library(tidyr) # Tidy Messy Data
-library(r5r) # Rapid Realistic Routing with 'R5'
-library(h3) # R Bindings for H3 # R Bindings for H3
 library(purrr) # Functional Programming Tools
 library(units) # Measurement Units for R Vectors
 library(ggpubr)
@@ -28,23 +25,23 @@ library(ggpubr)
 ```{r load packages}
 # Walksheds
 load(file = glue::glue(here::here(),
-                       "/data/houston_walksheds.rda"))
+                       "/data/nashville_walksheds.rda"))
 
 # Tracts
 load(file = glue::glue(here::here(),
-                       "/data/houston_tracts.rda"))
+                       "/data/nashville_tracts.rda"))
 
 # Urban boundaries
 load(file = glue::glue(here::here(),
-                       "/data/houston_urban.rda"))
+                       "/data/nashville_urban.rda"))
 
 # CBSA boundary
 load(file = glue::glue(here::here(),
-                       "/data/houston_cbsa.rda"))
+                       "/data/nashville_cbsa.rda"))
 ```
 
 ```{r add areas of walksheds}
-walksheds <- houston_walksheds |>
+walksheds <- nashville_walksheds |>
   mutate(area = as.numeric(st_area(geometry)))
 # units of area are m^2
 ```
@@ -55,19 +52,17 @@ walksheds <- houston_walksheds |>
 # Median income in past 12 months: B06011_001 (2022), B19013_001 (2020)
 
 income <- get_acs(
-  state = "Texas",
+  state = "Tennessee",
   geography = "tract",
   variables = "B06011_001",
   geometry = TRUE,
   output = "wide",
   year = 2022)
-# sort by county, doesn't always work:
-# county = c("Harris County", "Fort Bend", "Brazoria", "Galveston", "Chambers", "Liberty", "Montgomery", "Waller", "San Jacinto"),
 ```
 
 ```{r}
 white_p <- get_acs(
-  state = "Texas",
+  state = "Tennessee",
   geography = "tract",
   variables = "B02001_002",
   geometry = TRUE,
@@ -77,8 +72,7 @@ white_p <- get_acs(
 
 ```{r}
 black_p <- get_acs(
-  state = "Texas",
-  county = c("Harris County", "Fort Bend", "Brazoria", "Galveston", "Chambers", "Liberty", "Montgomery", "Waller", "San Jacinto"),
+  state = "Tennessee",
   geography = "tract",
   variables = "B02001_003",
   geometry = TRUE,
@@ -88,8 +82,7 @@ black_p <- get_acs(
 
 ```{r}
 asian_p <- get_acs(
-  state = "Texas",
-  county = c("Harris County", "Fort Bend", "Brazoria", "Galveston", "Chambers", "Liberty", "Montgomery", "Waller", "San Jacinto"),
+  state = "Tennessee",
   geography = "tract",
   variables = "B02001_005",
   geometry = TRUE,
@@ -99,8 +92,7 @@ asian_p <- get_acs(
 
 ```{r}
 american_indian_alaska_native_p <- get_acs(
-  state = "Texas",
-  county = c("Harris County", "Fort Bend", "Brazoria", "Galveston", "Chambers", "Liberty", "Montgomery", "Waller", "San Jacinto"),
+  state = "Tennessee",
   geography = "tract",
   variables = "B02001_004",
   geometry = TRUE,
@@ -110,8 +102,7 @@ american_indian_alaska_native_p <- get_acs(
 
 ```{r}
 pacific_islander_p <- get_acs(
-  state = "Texas",
-  county = c("Harris County", "Fort Bend", "Brazoria", "Galveston", "Chambers", "Liberty", "Montgomery", "Waller", "San Jacinto"),
+  state = "Tennessee",
   geography = "tract",
   variables = "B02001_006",
   geometry = TRUE,
@@ -121,8 +112,7 @@ pacific_islander_p <- get_acs(
 
 ```{r}
 other_p <- get_acs(
-  state = "Texas",
-  county = c("Harris County", "Fort Bend", "Brazoria", "Galveston", "Chambers", "Liberty", "Montgomery", "Waller", "San Jacinto"),
+  state = "Tennessee",
   geography = "tract",
   variables = "B02001_007",
   geometry = TRUE,
@@ -155,7 +145,7 @@ other_p <- st_drop_geometry(other_p)
 
 
 ```{r}
-houston_tracts_df <- houston_tracts |>
+nashville_tracts_df <- nashville_tracts |>
   left_join(walksheds |> select(GEOID, area), by = "GEOID") |>
   left_join(income |> select(GEOID, income), by = "GEOID") |>
   left_join(white_p |> select(GEOID, white_pop), by = "GEOID") |>
@@ -167,13 +157,13 @@ houston_tracts_df <- houston_tracts |>
 ```
 
 ```{r}
-houston_tracts_df <- houston_tracts_df |>
+nashville_tracts_df <- nashville_tracts_df |>
   mutate(total_pop = (white_pop + black_pop + asian_pop + pacific_islander_pop + american_indian_pop + other_pop))
 ```
 
 
 ```{r}
-houston_tracts_df <- houston_tracts_df |>
+nashville_tracts_df <- nashville_tracts_df |>
   mutate(
     white_prop = white_pop/total_pop,
     black_prop = black_pop/total_pop,
@@ -187,9 +177,9 @@ houston_tracts_df <- houston_tracts_df |>
 # Save Dataframe
 
 ```{r}
-save(houston_tracts_df, 
+save(nashville_tracts_df, 
      file = glue::glue(here::here(),
-                       "/data/houston_tracts_df.rda"),
+                       "/data/nashville_tracts_df.rda"),
      compress = "bzip2")
 ```
 
@@ -197,17 +187,17 @@ save(houston_tracts_df,
 
 ```{r}
 # Make sure Census Data covers all of the tracts
-ggplot(houston_tracts_df, aes(fill = area)) + 
+ggplot(nashville_tracts_df, aes(fill = area)) + 
   geom_sf() + 
   theme_void() +
   scale_fill_viridis_c(option = "turbo") +
   labs(fill = "Area of Walkshed
 in Square Meters") +
-  geom_sf(data = houston_tracts, fill = NA, color = "purple")
+  geom_sf(data = nashville_tracts, fill = NA, color = "purple")
 ```
 
 ```{r}
-ggplot(houston_tracts_df, aes(fill = black_prop)) + 
+ggplot(nashville_tracts_df, aes(fill = black_prop)) + 
   geom_sf() +
   theme_void() +
   scale_fill_viridis_c(option = "turbo") +
@@ -216,7 +206,7 @@ Black Population")
 ```
 
 ```{r}
-ggplot(houston_tracts_df, aes(fill = white_prop)) + 
+ggplot(nashville_tracts_df, aes(fill = white_prop)) + 
   geom_sf() + 
   theme_void() +
   scale_fill_viridis_c(option = "turbo") +
@@ -227,41 +217,18 @@ White Population")
 
 # Graphs
 
-The first two graphs here are test graphs, do not use those.
-
-```{r, black prop versus walkshed area}
-ggplot(houston_tracts_df, aes(x = black_prop, y = area)) +
-geom_point(size = 0.75) +
-  geom_smooth(method = "lm", se = FALSE, color = "grey") +
-  labs(x = 'Proportion of Other Populations in Census Tract', y = 'Proportion of Food Stamps Used in Census Tract') +
-  theme_classic()
-# for help with lines of best fit: https://aosmith.rbind.io/2018/11/16/plot-fitted-lines/
-```
-
-```{r, white prop versus walkshed area}
-ggplot(houston_tracts_df, aes(x = white_prop, y = area)) +
-geom_point(size = 0.75) +
-  geom_smooth(method = "lm", se = FALSE, color = "grey") +
-  labs(x = 'Proportion of Other Populations in Census Tract', y = 'Proportion of Food Stamps Used in Census Tract') +
-  stat_regline_equation(
-    aes(label =  paste(..eq.label.., ..adj.rr.label.., sep = "~~~~", label.x.npc = "right", label.y.npc = "top"))) +
-  theme_classic()
-# for help with lines of best fit: https://aosmith.rbind.io/2018/11/16/plot-fitted-lines/
-# for help with adj r^2 values: https://rpkgs.datanovia.com/ggpubr/reference/stat_regline_equation.html 
-```
-
 ```{r}
-ggscatter(houston_tracts_df, x = "black_prop", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Proportion of Black Population in Census Tract", ylab = "Area of Walkshed in Square Meters", font.label = c(5, "plain", "black")) +
+ggscatter(nashville_tracts_df, x = "black_prop", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Proportion of Black Population in Census Tract", ylab = "Area of Walkshed in Square Meters", font.label = c(5, "plain", "black")) +
   stat_cor(label.x = 0.75, label.y = 2000000) #label placement
 ```
 
 ```{r}
-ggscatter(houston_tracts_df, x = "white_prop", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Proportion of White Population in Census Tract", ylab = "Area of Walkshed in Square Meters", font.label = c(5, "plain", "black")) +
+ggscatter(nashville_tracts_df, x = "white_prop", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Proportion of White Population in Census Tract", ylab = "Area of Walkshed in Square Meters", font.label = c(5, "plain", "black")) +
   stat_cor(label.x = 0.75, label.y = 2000000) #label placement
 ```
 
 ```{r}
-ggscatter(houston_tracts_df, x = "income", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Average Income in Census Tract", ylab = "Area of Walkshed in Square Meters", font.label = c(5, "plain", "black")) +
+ggscatter(nashville_tracts_df, x = "income", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Average Income in Census Tract", ylab = "Area of Walkshed in Square Meters", font.label = c(5, "plain", "black")) +
   stat_cor(label.x = 110000, label.y = 2000000) #label placement
 ```
 
