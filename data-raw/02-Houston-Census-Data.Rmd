@@ -193,6 +193,13 @@ save(houston_tracts_df,
      compress = "bzip2")
 ```
 
+Or, if already saved, just load the file instead of re-running the previous code:
+
+```{r}
+load(file = glue::glue(here::here(),
+                       "/data/houston_tracts_df.rda"))
+```
+
 # Maps
 
 ```{r}
