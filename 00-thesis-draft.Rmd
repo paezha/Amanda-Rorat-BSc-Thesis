@@ -1,0 +1,16 @@
+---
+title: "00-thesis-draft"
+output: pdf_document
+date: "2025-04-05"
+---
+
+```{r}
+if (!require("remotes")) 
+  install.packages("remotes", 
+                   repos = "https://cran.rstudio.org")
+if (!require("bookdown")) 
+  install.packages("bookdown", 
+                   repos = "https://cran.rstudio.org")
+remotes::install_github("paezha/macdown")
+```
+

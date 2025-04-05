@@ -1,0 +1,21 @@
+---
+title: "02-methods"
+output: pdf_document
+date: "2025-04-05"
+---
+
+```{r}
+library(knitr)
+library(markdown)
+```
+
+
+```{r}
+print("this is a test file")
+```
+
+# Methods
+
+This project uses the programming language R to model walksheds of 5 different cities in the United States: Atlanta, Georgia; Houston, Texas; Jacksonville, Florida; Nashville, Tennessee; and Phoenix, Arizona. All of these cities are located in the Sun Belt of the United States, a region characterized by _ and have populations of over 1 million people in their core-based statistical areas. The following steps below will have maps from Phoenix to demonstrate what is being done.
+
+The first step was to map the urban tracts within each city. The urban tracts are created from the city's census tracts, defined as a small, geographic area. The tracts are selected from each city's urban area. Census tracts are good for making comparisons of different areas within a city due to their small size, and that much of the US Census Data is documented for census tracts as well. An example of Phoenix's census tract

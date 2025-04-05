@@ -45,6 +45,13 @@ load(file = glue::glue(here::here(),
 combined_df <- rbind(houston_tracts_df, atlanta_tracts_df, phoenix_tracts_df, nashville_tracts_df, jacksonville_tracts_df)
 ```
 
+```{r}
+save(combined_df, 
+     file = glue::glue(here::here(),
+                       "/data/houston_tracts_df.rda"),
+     compress = "bzip2")
+```
+
 # Graphs
 
 ```{r scatterplot of black prop}
