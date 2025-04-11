@@ -245,8 +245,8 @@ ggplot() +
   geom_sf(data = houston_walksheds[test_unit,],
           color = "blue",
           fill = NA,
-          linewidth = 1) #+
-  #geom_sf(data = roads)
+          linewidth = 1) +
+  theme_void()
 ```
 
 Save walksheds:

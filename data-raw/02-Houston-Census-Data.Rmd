@@ -268,7 +268,7 @@ ggscatter(houston_tracts_df, x = "white_prop", y = "area", add = "reg.line", sha
 ```
 
 ```{r}
-ggscatter(houston_tracts_df, x = "income", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Average Income in Census Tract", ylab = "Area of Walkshed in Square Meters", font.label = c(5, "plain", "black")) +
+ggscatter(houston_tracts_df, x = "income", y = "area", add = "reg.line", shape = 19, size = 1, xlab = "Average Income in Census Tract (USD)", ylab = "Area of Walkshed in Square Meters", font.label = c(5, "plain", "black")) +
   stat_cor(label.x = 110000, label.y = 2000000) #label placement
 ```
 

@@ -199,8 +199,8 @@ ggplot(phoenix_tracts_df, aes(fill = area)) +
   theme_void() +
   scale_fill_viridis_c(option = "turbo") +
   labs(fill = "Area of Walkshed
-in Square Meters") +
-  geom_sf(data = phoenix_tracts, fill = NA, color = "purple")
+in Square Meters")
+  # geom_sf(data = phoenix_tracts, fill = NA, color = "purple")
 ```
 
 ```{r}
